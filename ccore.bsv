@@ -23,8 +23,6 @@ import Assert ::*;
 import imem::*;
 import dmem::*;
 import pipe_ifcs :: * ;
-
-
 `ifdef hypervisor
   import ptwalk_hypervisor :: * ;
 `elsif supervisor
@@ -108,9 +106,6 @@ interface Ifc_ccore_axi4;
    * mhpmcounters in the csrs should stop incrementing when in debug mode*/
   method Bit#(1) mv_stop_count;
 `endif
-// PC Capture Interface
-  method Action ma_pc_capture_en(Bool en);
-  method Bit#(`vaddr) mv_commit_pc;
 endinterface : Ifc_ccore_axi4
 
 `ifdef core_clkgate
@@ -143,8 +138,6 @@ module mkccore_axi4#(Bit#(`vaddr) resetpc, parameter Bit#(`xlen) hartid `ifdef t
 
 	AXI4_Master_Xactor_IFC #(`paddr, `axi4_id_width , `buswidth, USERSPACE) fetch_xactor <- mkAXI4_Master_Xactor;
 	AXI4_Master_Xactor_IFC #(`paddr, `axi4_id_width ,`buswidth, USERSPACE) memory_xactor <- mkAXI4_Master_Xactor;
-
-
 `ifdef pmp
   /*doc:var: When pmp is enabled we capture the curernt pmp configurations and addresses that will
   * be required by the TLBs*/
@@ -167,27 +160,15 @@ module mkccore_axi4#(Bit#(`vaddr) resetpc, parameter Bit#(`xlen) hartid `ifdef t
   /*doc:reg: While performing burst writes during line eviction, this register indicates the amount
    * the line should be shifted to send the next beat of data on the bus*/
   Reg#(Bit#(TLog#(TMul#(TMul#(`dwords, 8), `dblocks)))) rg_shift_amount <- mkReg(`buswidth);
+  /start/
+  Reg#(Bit#(32)) trace_addr <- mkReg(0);
+  /end/
 `endif
   /*doc: capture the current privilege mode under which the current transaction is being carried
   * out. TODO: This should ideally come form the caches themselves. Capturing here can have issues.
   * For example during an eviction, if the prv changes in the write-back stage then stores of the same
   * line may occur in different privilege modes*/
   let curr_priv = riscv.csrs.mv_curr_priv;
-  // Connect PC capture from stage5 to memory system
-    //rule rl_connect_pc_capture;
-    //    dmem.ma_pc_value(riscv.s5_pc_ifc.mv_commit_pc);
-    //    dmem.ma_pc_capture_en(riscv.s5_pc_ifc.ma_pc_capture_en);
-   // endrule
-    // Connect PC capture from riscv to dmem
-    rule rl_forward_pc;
-        dmem.ma_pc_value(riscv.mv_commit_pc);
-    endrule
-    // Connect enable signals
-//    rule rl_forward_enable;
-//        dmem.ma_pc_capture_en(ma_pc_capture_en); // From top interface
-        //riscv.ma_pc_capture_en(pc_capture_en); // From top interface
-//    endrule
-
 
 	/doc:connect: Connect the instruction request from the core to the instruction memory subsystem/
 	mkConnection(imem.put_core_req , riscv.s0_icache.to_icache);
@@ -550,6 +531,33 @@ _shift_amount:%d",hartid, req.data, rg_burst_count, last, rg_shift_amount))
     dmem.put_resp_from_ptw.put(resp);
     rg_ptw_state <= None;
   endrule:rl_ptwalk_resp_to_dtlb
+  /start/
+ rule rl_write_pc_trace;
+   let pc <- riscv.pc_trace_out.get;
+
+   AXI4_Wr_Addr#(`paddr, `axi4_id_width, 0) aw = AXI4_Wr_Addr {
+    awaddr  : 32'h80000000 + trace_addr,
+    awuser  : 0,
+    awprot  : 0,
+    awlen   : 0,
+    awsize  : 3,
+    awburst : 1,
+    awid    : 0
+};
+
+   AXI4_Wr_Data#(`axi4_id_width, `buswidth) wd = AXI4_Wr_Data {
+       wdata : zeroExtend(pc),
+       wstrb : '1,
+       wlast : True
+   };
+
+   memory_xactor.i_wr_addr.enq(aw);
+   memory_xactor.i_wr_data.enq(wd);
+
+   trace_addr <= trace_addr + 8;
+endrule
+
+/end/
 
   /doc:connect: this connects the ptwalk request to the data memory subsystem/
   let ptwalk_req <- mkConnection(dmem.receive_core_req, ptwalk.request_to_cache);
@@ -575,16 +583,6 @@ _shift_amount:%d",hartid, req.data, rg_burst_count, last, rg_shift_amount))
   `endif
 `endif   
   
-  // Add new interface implementations
-  method Action ma_pc_capture_en(Bool en);
-      dmem.ma_pc_capture_en(en);
-      riscv.ma_pc_capture_en(en);
-  endmethod
-
-  method Bit#(`vaddr) mv_commit_pc;
-      return riscv.mv_commit_pc;
-  endmethod
-    
   interface sb_clint_msip = interface Put
     method Action put(Bit#(1) intrpt);
       riscv.interrupts.ma_clint_msip(intrpt);
@@ -622,6 +620,7 @@ _shift_amount:%d",hartid, req.data, rg_burst_count, last, rg_shift_amount))
   method mv_stop_timer = riscv.mv_stop_timer;
   method mv_stop_count = riscv.mv_stop_count;
 `endif
+
 endmodule : mkccore_axi4
 
 endpackage:ccore

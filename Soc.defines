@@ -1,0 +1,30 @@
+`ifdef debug
+`define Num_Slaves 7
+`else
+`define Num_Slaves 6
+`endif
+`define Memory_slave_num 0
+`define BootRom_slave_num 1
+`define Uart_slave_num 2
+`define Clint_slave_num 3
+`define Sign_slave_num 4
+`define Err_slave_num 5
+`define Debug_slave_num 6
+/*start*/
+`define Sdram_slave_num 7
+/*end*/
+// master numbers on fabric
+// slave numbers of fabric
+
+`define MemoryBase  'h8000_0000
+`define MemoryEnd   'h8FFF_FFFF
+`define BootRomBase 'h0000_1000
+`define BootRomEnd  'h0001_0FFF
+`define UartBase    'h11300
+`define UartEnd     'h11340
+`define ClintBase   'h0200_0000
+`define ClintEnd    'h020B_FFFF
+`define SignBase    'h0002_0000
+`define SignEnd     'h0002_000c
+`define DebugBase   'h0000_0000
+`define DebugEnd    'h0000_0FFF

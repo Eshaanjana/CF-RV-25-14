@@ -1,4 +1,5 @@
 // See LICENSE.iitm for license details
+
 package Soc;
   // project related imports
 	import Semi_FIFOF:: *;
@@ -9,10 +10,6 @@ package Soc;
   import Clocks :: *;
   `include "ccore_params.defines"
   `include "Soc.defines"
-  /*start*/
-  //`include "sdram.defines"
-  //`include "sdram.bsv"
-/*end*/
   // peripheral imports
   import uart::*;
   import clint::*;
@@ -32,9 +29,9 @@ package Soc;
 `ifdef debug
   import debug_types::*;                                                                          
 `endif
-/*start*/
-  import sdram :: *;
-/*end*/
+/start/
+ // import sdram :: *;
+/end/
   typedef 0 Sign_master_num;
   typedef (TAdd#(TMul#(`num_harts,2), `ifdef debug 1 `else 0 `endif )) Debug_master_num;
   typedef (TAdd#(Debug_master_num, 1)) Num_Masters;
@@ -83,16 +80,16 @@ package Soc;
   `endif
   endinterface
 
-  (*synthesize*)
+  (synthesize)
   module mkSoc `ifdef debug #(Vector#(`num_harts, Reset) hartresets ) `endif (Ifc_Soc);
     let curr_clk<-exposeCurrentClock;
     let curr_reset<-exposeCurrentReset;
-    /*start*/
-    Reg#(Bit#(32)) copy_addr <- mkReg(0);
-    Reg#(Bool) copy_done <- mkReg(False);
-    Reg#(Bool) copy_read_pending <- mkReg(False);
-    Reg#(Bit#(64)) copy_data <- mkReg(0);
-  /*end*/
+    /start/
+   // Reg#(Bit#(32)) copy_addr <- mkReg(0);
+   // Reg#(Bool) copy_done <- mkReg(False);
+ //   Reg#(Bool) copy_read_pending <- mkReg(False);
+  //  Reg#(Bit#(64)) copy_data <- mkReg(0);
+  /end/
     
     Reset core_reset [`num_harts];
     for (Integer i = 0; i<`num_harts; i = i + 1) begin
@@ -117,9 +114,9 @@ package Soc;
     Ifc_err_slave_axi4#(`paddr,`axi4_id_width,`buswidth,0) err_slave <- mkerr_slave_axi4;
     Ifc_bram_axi4#(`paddr,`axi4_id_width, `buswidth, USERSPACE, `Addr_space) main_memory <- mkbram_axi4(`MemoryBase,
                                                 "code.mem", "MainMEM");
-    /*start*/
-    Ifc_sdram_axi4#(`paddr, `buswidth, `axi4_id_width, USERSPACE, 12, 3) sdram_mem <- mksdram_axi4(curr_clk, curr_reset);
-    /*end*/
+    /start/
+    Ifc_bram_axi4#(`paddr,`axi4_id_width, `buswidth, USERSPACE, `Addr_space) trace_bram <- mkbram_axi4(`TraceBase, "", "TraceBRAM");
+  
                   Ifc_bootrom_axi4#(`paddr, `axi4_id_width, `buswidth, USERSPACE, `ifdef axi4_128b 12 `else 13 `endif ) bootrom <-mkbootrom_axi4(`BootRomBase);
 
   `ifdef debug
@@ -155,9 +152,10 @@ package Soc;
     mkConnection (fabric.v_to_slaves [`Sign_slave_num ] , signature.slave);
     mkConnection (fabric.v_to_slaves [`Err_slave_num ] , err_slave.slave);
   	mkConnection(fabric.v_to_slaves[`Memory_slave_num] , main_memory.slave);
-  	/*start*/
-  	mkConnection(fabric.v_to_slaves[`Sdram_slave_num], sdram_mem.slave_mem);
-        /*end*/
+  	/start/
+  	mkConnection(fabric.v_to_slaves[`Trace_slave_num], trace_bram.slave);
+  	//mkConnection(fabric.v_to_slaves[`Sdram_slave_num], sdram_mem.slave_mem);
+        /end/
 		mkConnection(fabric.v_to_slaves[`BootRom_slave_num] , bootrom.slave);
 
 
@@ -184,43 +182,46 @@ package Soc;
         ccore[i].sb_clint_msip.put(msip[i]);
       end
     endrule: rl_connect_clint_msip
-/*start*/
-  rule rl_start_copy (!copy_done && !copy_read_pending && sdram_mem.io.osdr_init_done);
-   let ar = AXI4_Rd_Addr {
-     araddr: `MemoryBase + copy_addr,
-     arid: 0, arlen: 0, arsize: 3, arburst: 1,
-     arlock: 0, arcache: 0, arprot: 0,
-     arqos: 0, arregion: 0, aruser: 0
-   }; 
-   main_memory.slave.o_rd_addr.enq(ar);
-   copy_read_pending <= True;
-  endrule
+/start/
+//  rule rl_start_copy (!copy_done && !copy_read_pending && sdram_mem.io.osdr_init_done);
+//   let ar = AXI4_Rd_Addr {
+//     araddr: `MemoryBase + copy_addr,
+//     arid: 0, arlen: 0, arsize: 3, arburst: 1,
+//     arlock: 0, arcache: 0, arprot: 0,
+//     arqos: 0, arregion: 0, aruser: 0
+//   }; 
+//   main_memory.slave.o_rd_addr.enq(ar);
+//   copy_read_pending <= True;
+//  endrule
 
-  rule rl_capture_data (copy_read_pending && main_memory.slave.i_rd_data.notEmpty);
-     let r = main_memory.slave.i_rd_data.first;
-     main_memory.slave.i_rd_data.deq;
-     copy_data <= r.rdata;
-     copy_read_pending <= False;
-  endrule
+  //rule rl_capture_data (copy_read_pending && main_memory.slave.i_rd_data.notEmpty);
+  //   let r = main_memory.slave.i_rd_data.first;
+//     main_memory.slave.i_rd_data.deq;
+//     copy_data <= r.rdata;
+//     copy_read_pending <= False;
+//  endrule
 
-  rule rl_write_to_sdram (!copy_read_pending && copy_data != 0);
-     let aw = AXI4_Wr_Addr {
-       awaddr: 32'h80000000 + copy_addr,  // <-- Choose SDRAM base
-       awid: 0, awlen: 0, awsize: 3, awburst: 1,
-       awlock: 0, awcache: 0, awprot: 0,
-       awqos: 0, awregion: 0, awuser: 0
-     };
-     let wd = AXI4_Wr_Data { wdata: copy_data, wstrb: '1, wlast: True, wuser: 0 };
+ // rule rl_write_to_sdram (!copy_read_pending && copy_data != 0);
+ //    let aw = AXI4_Wr_Addr {
+ //      awaddr: 32'h80000000 + copy_addr,  // <-- Choose SDRAM base
+ //      awid: 0, awlen: 0, awsize: 3, awburst: 1,
+ //      awlock: 0, awcache: 0, awprot: 0,
+ //      awqos: 0, awregion: 0, awuser: 0
+ //    };
+ //    let wd = AXI4_Wr_Data { wdata: copy_data, wstrb: '1, wlast: True, wuser: 0 };
 
    // SDRAM slave instance must be used here, example: sdram_mem.slave_mem
    // Replace sdram_mem with your actual SDRAM instance name
-     sdram_mem.slave_mem.o_wr_addr.enq(aw);
-     sdram_mem.slave_mem.o_wr_data.enq(wd);
-     copy_addr <= copy_addr + 8;
-     copy_data <= 0;
-     if (copy_addr >= 4096) copy_done <= True;
-  endrule
-/*end*/
+
+ //    sdram_mem.slave_mem.o_wr_addr.enq(aw);
+ //    sdram_mem.slave_mem.o_wr_data.enq(wd);
+
+   //  copy_addr <= copy_addr + 8;
+  //   copy_data <= 0;
+
+    // if (copy_addr >= 4096) copy_done <= True;
+ // endrule
+/end/
   `ifdef rtldump
   interface soc_sb = interface Ifc_soc_sb
     interface commitlog= ccore[0].commitlog;
@@ -237,7 +238,9 @@ package Soc;
     method mv_harts_have_reset = lv_haveresets;
     method mv_core_debugenable = lv_debugenable;
   `endif
+
       // ------------- JTAG IOs ----------------------//
       // -------------------------------------------- //
+     
   endmodule: mkSoc
 endpackage: Soc

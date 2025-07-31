@@ -1,7 +1,7 @@
 `ifdef debug
-`define Num_Slaves 7
+`define Num_Slaves 8
 `else
-`define Num_Slaves 6
+`define Num_Slaves 7
 `endif
 `define Memory_slave_num 0
 `define BootRom_slave_num 1
@@ -10,11 +10,13 @@
 `define Sign_slave_num 4
 `define Err_slave_num 5
 `define Debug_slave_num 6
-/*start*/
-`define Sdram_slave_num 7
-/*end*/
+/start/
+`define Trace_slave_num 7   
+`define TraceBase 'hA0000000
+/end/
 // master numbers on fabric
 // slave numbers of fabric
+
 
 `define MemoryBase  'h8000_0000
 `define MemoryEnd   'h8FFF_FFFF

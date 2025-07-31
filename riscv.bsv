@@ -94,9 +94,9 @@ package riscv;
 
     interface Ifc_s5_interrupts interrupts;
     interface Ifc_s5_cache s5_cache;
-/*start*/    
-    interface Put#(Bit#(64)) pc_trace_out;
-/*end*/
+/start/    
+    interface Get#(Bit#(64)) pc_trace_out;
+/end/
     interface Ifc_riscv_csrs csrs;
     interface Ifc_pipe_status pipe_status;
   `ifdef perfmonitors
@@ -107,7 +107,7 @@ package riscv;
     method Bit#(1) mv_core_is_reset;
     method Bit#(1) mv_core_debugenable;
   `ifndef core_clkgate
-    (*always_enabled*)
+    (always_enabled)
   `endif
     method Action ma_debugger_available (Bit#(1) avail);
     method Bit#(1) mv_stop_timer;
@@ -121,9 +121,9 @@ package riscv;
 
 `ifdef riscv_noinline
 `ifdef core_clkgate
-(*synthesize,gate_all_clocks*)
+(synthesize,gate_all_clocks)
 `else
-  (*synthesize*)
+  (synthesize)
 `endif
 `endif
 module mkriscv#(Bit#(`vaddr) resetpc, parameter Bit#(`xlen) hartid `ifdef testmode ,Bool test_mode `endif )(Ifc_riscv);
@@ -136,7 +136,7 @@ module mkriscv#(Bit#(`vaddr) resetpc, parameter Bit#(`xlen) hartid `ifdef testmo
     
     /*doc:reg: This register stays high once the hart has been reset */
     Reg#(Bit#(1)) rg_reset_done <- mkReg(0);
-    /*doc:reg: This register sends a single cycle pulse one the hart is out of reset*/
+    /doc:reg: This register sends a single cycle pulse one the hart is out of reset/
     Reg#(Bit#(1)) rg_reset_event <- mkDReg(0);
     /*doc:reg: This register is used to set the above registers after certain amount of clock cycles
      * have passed since the deassertion of the reset*/
@@ -343,7 +343,7 @@ module mkriscv#(Bit#(`vaddr) resetpc, parameter Bit#(`xlen) hartid `ifdef testmo
     rule rl_clear_stall_in_decode_stage(exeflush || wbflush.flush);
       stage2.common.ma_clear_stall(True);
     endrule:rl_clear_stall_in_decode_stage
-    /*doc:rule: This is fired when execute stage generates a flush*/
+    /doc:rule: This is fired when execute stage generates a flush/
     rule rl_update_eEpoch(exeflush);
       stage0.common.ma_update_eEpoch();
       stage1.common.ma_update_eEpoch();
@@ -440,8 +440,8 @@ module mkriscv#(Bit#(`vaddr) resetpc, parameter Bit#(`xlen) hartid `ifdef testmo
     `endif
     endinterface;
   `endif
-  /*start*/
+  /start/
   interface pc_trace_out = stage5.pc_trace_out;
-  /*end*/
+  /end/
   endmodule: mkriscv
 endpackage: riscv

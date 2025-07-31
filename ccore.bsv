@@ -536,26 +536,29 @@ _shift_amount:%d",hartid, req.data, rg_burst_count, last, rg_shift_amount))
    let pc <- riscv.pc_trace_out.get;
 
    AXI4_Wr_Addr#(`paddr, `axi4_id_width, 0) aw = AXI4_Wr_Addr {
-    awaddr  : 32'h80000000 + trace_addr,
-    awuser  : 0,
-    awprot  : 0,
-    awlen   : 0,
-    awsize  : 3,
-    awburst : 1,
-    awid    : 0
-};
-
-   AXI4_Wr_Data#(`axi4_id_width, `buswidth) wd = AXI4_Wr_Data {
-       wdata : zeroExtend(pc),
-       wstrb : '1,
-       wlast : True
+       awaddr  : 32'hA0000000 + trace_addr,
+       awuser  : 0,
+       awprot  : 0,
+       awlen   : 0,
+       awsize  : 3,
+       awburst : 1,
+       awid    : 0
    };
+
+  AXI4_Wr_Data#(`axi4_id_width, `buswidth) wd = AXI4_Wr_Data {
+      wdata : truncate(pc),
+      wstrb : '1,
+      wlast : True
+  };
+
 
    memory_xactor.i_wr_addr.enq(aw);
    memory_xactor.i_wr_data.enq(wd);
 
+
    trace_addr <= trace_addr + 8;
 endrule
+
 
 /end/
 

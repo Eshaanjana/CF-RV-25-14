@@ -12,7 +12,7 @@
 `define Debug_slave_num 6
 /start/
 `define Trace_slave_num 7   
-`define TraceBase 'h70000000
+`define TraceBase 'h90000000
 /end/
 // master numbers on fabric
 // slave numbers of fabric

@@ -536,7 +536,7 @@ _shift_amount:%d",hartid, req.data, rg_burst_count, last, rg_shift_amount))
    let pc <- riscv.pc_trace_out.get;
 
    AXI4_Wr_Addr#(`paddr, `axi4_id_width, 0) aw = AXI4_Wr_Addr {
-       awaddr  : 32'hA0000000 + trace_addr,
+       awaddr  : 32'h70000000 + trace_addr,
        awuser  : 0,
        awprot  : 0,
        awlen   : 0,
